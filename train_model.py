@@ -1,42 +1,161 @@
-from ucimlrepo import fetch_ucirepo
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_absolute_error, r2_score
+﻿import pandas as pd
 import joblib
 
-# Load dataset
-student_performance = fetch_ucirepo(id=320)
+from ucimlrepo import fetch_ucirepo
+from sklearn.model_selection import train_test_split
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.pipeline import Pipeline
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_absolute_error, r2_score
 
-X = student_performance.data.features
-y = student_performance.data.targets["G3"]
 
-# Keep only numerical features
-X = X.select_dtypes(include=["number"])
+# Load UCI Student Performance dataset
+dataset = fetch_ucirepo(id=320)
 
-# Split data
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42
+X = dataset.data.features.copy()
+y = dataset.data.targets["G3"].copy()
+
+
+# Features used by the model
+features = [
+    "age",
+    "address",
+    "famsize",
+    "Pstatus",
+    "Medu",
+    "Fedu",
+    "Mjob",
+    "Fjob",
+    "reason",
+    "guardian",
+    "traveltime",
+    "studytime",
+    "failures",
+    "schoolsup",
+    "famsup",
+    "paid",
+    "activities",
+    "nursery",
+    "higher",
+    "internet",
+    "famrel",
+    "freetime",
+    "goout",
+    "health",
+    "absences"
+]
+
+X = X[features]
+
+# Make sure target is numeric
+y = pd.to_numeric(y, errors="coerce")
+
+# Remove invalid rows
+valid_rows = y.notna()
+
+X = X.loc[valid_rows].copy()
+y = y.loc[valid_rows].copy()
+
+
+# Numeric features
+numeric_features = [
+    "age",
+    "Medu",
+    "Fedu",
+    "traveltime",
+    "studytime",
+    "failures",
+    "famrel",
+    "freetime",
+    "goout",
+    "health",
+    "absences"
+]
+
+
+# Categorical features
+categorical_features = [
+    "address",
+    "famsize",
+    "Pstatus",
+    "Mjob",
+    "Fjob",
+    "reason",
+    "guardian",
+    "schoolsup",
+    "famsup",
+    "paid",
+    "activities",
+    "nursery",
+    "higher",
+    "internet"
+]
+
+
+# Preprocessing
+preprocessor = ColumnTransformer(
+    transformers=[
+        (
+            "categorical",
+            OneHotEncoder(handle_unknown="ignore"),
+            categorical_features
+        ),
+        (
+            "numeric",
+            "passthrough",
+            numeric_features
+        )
+    ]
 )
 
-# Train model
+
+# Random Forest model
 model = RandomForestRegressor(
-    n_estimators=200,
+    n_estimators=300,
     random_state=42
 )
 
-model.fit(X_train, y_train)
+
+# Complete ML pipeline
+pipeline = Pipeline(
+    steps=[
+        ("preprocessor", preprocessor),
+        ("model", model)
+    ]
+)
+
+
+# Split dataset
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    test_size=0.2,
+    random_state=42
+)
+
+
+# Train
+pipeline.fit(X_train, y_train)
+
+
+# Predict
+predictions = pipeline.predict(X_test)
+
 
 # Evaluate
-predictions = model.predict(X_test)
-
 mae = mean_absolute_error(y_test, predictions)
 r2 = r2_score(y_test, predictions)
 
-print("Model trained successfully!")
-print(f"Mean Absolute Error: {mae:.2f}")
-print(f"R² Score: {r2:.2f}")
+print(f"MAE: {mae:.2f}")
+print(f"R2 Score: {r2:.2f}")
 
-# Save model
-joblib.dump(model, "student_performance_model.pkl")
 
-print("Model saved successfully!")
+# Save complete pipeline
+joblib.dump(pipeline, "student_performance_model.pkl")
+
+print("Model saved successfully.")
+
+print("\nFeatures used:")
+for feature in features:
+    print("-", feature)
