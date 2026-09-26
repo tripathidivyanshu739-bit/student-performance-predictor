@@ -2,6 +2,10 @@
 
 A machine learning project that predicts a student's final academic performance using student-related academic and personal factors.
 
+## 🚀 Live Demo
+
+👉 [Click here to use the Student Performance Predictor](https://student-performance-predictor18.streamlit.app/)
+
 ## Project Overview
 
 This project uses a **Random Forest Regression** model to predict a student's final grade (G3) out of 20.
